@@ -80,7 +80,7 @@ function Oauth2SpecService(subjectDataService, configuration) {
         var isItsCredential = await bcrypt.compare(subject_secret, subject[0].secret)
         if (isItsCredential === false) {
             //TODO: add fba
-            console.log("Incorrect password: " + subject_identifier);
+            console.log("Incorrect password of: " + subject_identifier);
             let response = {
                 code: 401000,
                 message: "unauthorized"
