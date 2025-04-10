@@ -28,10 +28,9 @@ function Oauth2SpecRoutes(oauth2SpecService, expressInstance) {
       });
     }
 
+    var tokenResponse;
     try {
-      var tokenResponse = await this.oauth2SpecService.generateToken(req.body);
-      res.status(200);
-      return res.json(tokenResponse);
+      tokenResponse = await this.oauth2SpecService.generateToken(req.body);      
     } catch (e) {
       console.log(e);
       res.status(500);
@@ -40,6 +39,14 @@ function Oauth2SpecRoutes(oauth2SpecService, expressInstance) {
         message: "internal error"
       });
     }
+
+    if(tokenResponse && typeof tokenResponse.code === 'number'){
+      res.status(Math.round(tokenResponse.code/1000));
+    }else{
+      res.status(500);
+    }
+
+    return res.json(tokenResponse);
   }
 
   //https://www.rfc-editor.org/rfc/rfc7662
