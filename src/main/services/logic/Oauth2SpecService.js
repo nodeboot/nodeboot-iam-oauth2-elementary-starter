@@ -7,8 +7,28 @@ function Oauth2SpecService(subjectDataService, configuration) {
 
     this.subjectDataService = subjectDataService;
     this.configuration = configuration;
+    this.suspiciousClients = {};
+    this.maxAllowedFailedLoginCount = 3;
+    this.maxPunishmentMinutes = 10;
 
-    this.generateToken = async(generateTokenRequest) => {
+    //todo: parameterize the fba protection
+    this.generateToken = async(generateTokenRequest, req) => {
+
+        //get client ip adress
+        var address;
+        try {
+            address =
+            req.headers["x-forwarded-for"] || req.connection.remoteAddress ||
+            req.socket.remoteAddress || req.connection.socket.remoteAddress;
+        } catch (error) { }
+
+        if(address && this.suspiciousClients[address] && 
+            typeof this.suspiciousClients[address].count !== 'undefined' && this.suspiciousClients[address].count >this.maxAllowedFailedLoginCount){
+            return {
+                code: 429000,
+                message: "Too many failed login attempts. Please try again later or contact the admin"
+            };            
+        }
 
         if (!ObjectHelper.hasProperty(this.configuration, "nodeboot.iam_oauth2_elementary_starter.jwtSecret")) {
             console.log("nodeboot.iam_oauth2_elementary_starter.jwtSecret was not found");
@@ -85,8 +105,33 @@ function Oauth2SpecService(subjectDataService, configuration) {
                 code: 401000,
                 message: "unauthorized"
             };
+        
+            if (address) {  
+              
+                console.log("this.suspiciousClients[address]")
+                console.log(this.suspiciousClients[address])
+
+              if(typeof this.suspiciousClients[address] === 'undefined'){
+                this.suspiciousClients[address] = {count:1};
+              }else{
+                let failedLoginCount = this.suspiciousClients[address].count;  
+                this.suspiciousClients[address].count = failedLoginCount+1;
+                this.suspiciousClients[address].lastDateMillis = new Date().getTime()
+              }
+
+              if(this.suspiciousClients[address].count >this.maxAllowedFailedLoginCount){
+                return {
+                    code: 429000,
+                    message: "Too many failed login attempts. Please try again later or contact the admin"
+                };
+              }
+            }         
+            
             return response;
         }
+
+
+
 
         //TODO: validate at least one role
 
@@ -197,6 +242,21 @@ function Oauth2SpecService(subjectDataService, configuration) {
         } else {
             return jwt.sign(payload, secret);
         }
+    }
+
+    this.clearSuspiciousAddreses = () => {
+        for(let suspiciousAddress in this.suspiciousClients){
+            if(this.suspiciousClients[suspiciousAddress] && 
+                this.suspiciousClients[suspiciousAddress].count >this.maxAllowedFailedLoginCount){
+                //validate if x minutes have passed
+                const diff = new Date().getTime() - this.suspiciousClients[suspiciousAddress].lastDateMillis;
+                var minutes = (diff / 60000);
+                if(minutes > this.maxPunishmentMinutes){
+                    console.log("Suspicious address is released: "+suspiciousAddress)
+                    delete this.suspiciousClients[suspiciousAddress];
+                }
+            }
+        }        
     }
 }
 
