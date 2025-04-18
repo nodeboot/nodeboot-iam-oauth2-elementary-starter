@@ -12,7 +12,9 @@ function Oauth2SpecService(subjectDataService, configuration) {
     this.maxPunishmentMinutes = 10;
 
     //todo: parameterize the fba protection
-    this.generateToken = async(generateTokenRequest, req) => {
+    this.generateToken = async(req) => {
+
+        var generateTokenRequest = req.body;
 
         //get client ip adress
         var address;
@@ -20,7 +22,9 @@ function Oauth2SpecService(subjectDataService, configuration) {
             address =
             req.headers["x-forwarded-for"] || req.connection.remoteAddress ||
             req.socket.remoteAddress || req.connection.socket.remoteAddress;
-        } catch (error) { }
+        } catch (error) { 
+            console.log(error)
+        }
 
         if(address && this.suspiciousClients[address] && 
             typeof this.suspiciousClients[address].count !== 'undefined' && this.suspiciousClients[address].count >this.maxAllowedFailedLoginCount){
@@ -107,10 +111,6 @@ function Oauth2SpecService(subjectDataService, configuration) {
             };
         
             if (address) {  
-              
-                console.log("this.suspiciousClients[address]")
-                console.log(this.suspiciousClients[address])
-
               if(typeof this.suspiciousClients[address] === 'undefined'){
                 this.suspiciousClients[address] = {count:1};
               }else{
@@ -118,7 +118,6 @@ function Oauth2SpecService(subjectDataService, configuration) {
                 this.suspiciousClients[address].count = failedLoginCount+1;
                 this.suspiciousClients[address].lastDateMillis = new Date().getTime()
               }
-
               if(this.suspiciousClients[address].count >this.maxAllowedFailedLoginCount){
                 return {
                     code: 429000,
@@ -130,8 +129,10 @@ function Oauth2SpecService(subjectDataService, configuration) {
             return response;
         }
 
-
-
+        // //clear past incorrect passwords
+        if(address && this.suspiciousClients[address] ){
+            delete this.suspiciousClients[address];
+        }
 
         //TODO: validate at least one role
 
@@ -164,6 +165,7 @@ function Oauth2SpecService(subjectDataService, configuration) {
                 expires_in: jwtExpiration
             }
         };
+        
         return response;
     }
 

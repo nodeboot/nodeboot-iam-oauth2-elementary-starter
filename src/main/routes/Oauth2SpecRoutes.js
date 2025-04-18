@@ -30,7 +30,7 @@ function Oauth2SpecRoutes(oauth2SpecService, expressInstance) {
 
     var tokenResponse;
     try {
-      tokenResponse = await this.oauth2SpecService.generateToken(req.body);      
+      tokenResponse = await this.oauth2SpecService.generateToken(req);      
     } catch (e) {
       console.log(e);
       res.status(500);
